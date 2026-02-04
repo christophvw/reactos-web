@@ -7,6 +7,8 @@
  *              Copyright 2012-2013 Kamil Hornicek (kamil.hornicek@reactos.org)
  */
 
+	define("MY_LOGFILE", "/tmp/WineTest_Writer.log");
+
 	class WineTest_Writer
 	{
 		// Member Variables
@@ -16,6 +18,8 @@
 		// Public Functions
 		public function __construct($source_id, $password)
 		{
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": __construct($source_id, $password)\n", FILE_APPEND);
+
 			// Connect to the database.
 			$this->_dbh = new PDO("mysql:host=" . TESTMAN_DB_HOST . ";dbname=" . TESTMAN_DB_NAME, TESTMAN_DB_USER, TESTMAN_DB_PASS);
 			$this->_dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -34,6 +38,8 @@
 
 		public function getTestId($revision, $platform, $comment)
 		{
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": getTestId($revision, $platform, $comment)\n", FILE_APPEND);
+
 			// Add a new Test ID with the given information.
 			$stmt = $this->_dbh->prepare("INSERT INTO winetest_runs (source_id, revision, platform, comment) VALUES (:sourceid, :revision, :platform, :comment)");
 			$stmt->bindValue(":sourceid", (int)$this->_source_id, PDO::PARAM_INT);
@@ -41,32 +47,43 @@
 			$stmt->bindParam(":platform", $platform);
 			$stmt->bindParam(":comment", $comment);
 			$stmt->execute();
+			$id = (int)$this->_dbh->lastInsertId();
 
-			return (int)$this->_dbh->lastInsertId();
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": --> new Test ID $id\n", FILE_APPEND);
+			return $id;
 		}
 
 		public function getSuiteId($module, $test)
 		{
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": getSuiteId($module, $test)\n", FILE_APPEND);
+
 			// Determine whether we already have a suite ID for this combination.
 			$stmt = $this->_dbh->prepare("SELECT id FROM winetest_suites WHERE module = :module AND test = :test");
 			$stmt->bindParam(":module", $module);
 			$stmt->bindParam(":test", $test);
 			$stmt->execute();
-			$id = $stmt->fetchColumn();
+			$id = (int)$stmt->fetchColumn();
 			if ($id)
-				return (int)$id;
+			{
+				file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": --> existing Suite ID $id\n", FILE_APPEND);
+				return $id;
+			}
 
 			// Add this combination to the table and return the ID for it.
 			$stmt = $this->_dbh->prepare("INSERT INTO winetest_suites (module, test) VALUES (:module, :test)");
 			$stmt->bindParam(":module", $module);
 			$stmt->bindParam(":test", $test);
 			$stmt->execute();
+			$id = (int)$this->_dbh->lastInsertId();
 
-			return (int)$this->_dbh->lastInsertId();
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": --> new Suite ID $id\n", FILE_APPEND);
+			return $id;
 		}
 
 		public function getModuleAndTestForSuiteId($suite_id, &$module, &$test)
 		{
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": getModuleAndTestForSuiteId($suite_id)\n", FILE_APPEND);
+
 			$stmt = $this->_dbh->prepare("SELECT module, test FROM winetest_suites WHERE id = :id");
 			$stmt->bindValue(":id", (int)$suite_id, PDO::PARAM_INT);
 			$stmt->execute();
@@ -75,16 +92,21 @@
 			{
 				$module = $row["module"];
 				$test = $row["test"];
+
+				file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": --> Module and Test: ($module, $test)\n", FILE_APPEND);
 				return true;
 			}
 			else
 			{
+				file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": --> No Module and Test for Suite ID\n", FILE_APPEND);
 				return false;
 			}
 		}
 
 		public function submit($test_id, $suite_id, $log)
 		{
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": submit($test_id, $suite_id, log...)\n", FILE_APPEND);
+
 			// Make sure that we may add information to the test with this Test ID
 			$stmt = $this->_dbh->prepare("SELECT COUNT(*) FROM winetest_runs WHERE id = :testid AND finished = 0 AND source_id = :sourceid");
 			$stmt->bindValue(":testid", (int)$test_id, PDO::PARAM_INT);
@@ -92,6 +114,7 @@
 			$stmt->execute();
 			if (!$stmt->fetchColumn())
 			{
+				file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": !!! Test ID {$test_id} for Source ID {$this->_source_id} could not be found or accessed in the database!\n", FILE_APPEND);
 				throw new RuntimeException("Test ID {$test_id} for Source ID {$this->_source_id} could not be found or accessed in the database!");
 			}
 
@@ -100,14 +123,17 @@
 			$stmt->bindValue(":testid", (int)$test_id, PDO::PARAM_INT);
 			$stmt->bindValue(":suiteid", (int)$suite_id, PDO::PARAM_INT);
 			$stmt->execute();
+			$count = $stmt->fetchColumn();
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": --> count = $count\n", FILE_APPEND);
 
-			if ($stmt->fetchColumn() > 0)
+			if ($count > 0)
 			{
 				$module = "";
 				$test = "";
 
 				if ($this->getModuleAndTestForSuiteId($suite_id, $module, $test))
 				{
+					file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": !!! Duplicate result for test suite {$module}:{$test} in this test run!\n", FILE_APPEND);
 					throw new RuntimeException("Duplicate result for test suite {$module}:{$test} in this test run!");
 				}
 				else
@@ -188,6 +214,8 @@
 
 		public function finish($test_id, $performance)
 		{
+			file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": finish($test_id, performance...)\n", FILE_APPEND);
+
 			// Sum up all results and mark this test as finished, so no more results can be submitted for it
 			$stmt = $this->_dbh->prepare(
 				"UPDATE winetest_runs
