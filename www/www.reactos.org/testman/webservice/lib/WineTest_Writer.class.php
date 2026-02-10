@@ -233,7 +233,7 @@
 			);
 			$stmt->bindValue(":sourceid", (int)$this->_source_id, PDO::PARAM_INT);
 			$stmt->bindValue(":testid", (int)$test_id, PDO::PARAM_INT);
-			$stmt->bindValue(":boot_cycles", (int)$performance["boot_cycles"], PDO::PARAM_INT);
+			$stmt->bindValue(":boot_cycles", $performance["boot_cycles"], PDO::PARAM_STR);
 			$stmt->bindValue(":context_switches", (int)$performance["context_switches"], PDO::PARAM_INT);
 			$stmt->bindValue(":interrupts", (int)$performance["interrupts"], PDO::PARAM_INT);
 			$stmt->bindValue(":reboots", (int)$performance["reboots"], PDO::PARAM_INT);
