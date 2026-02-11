@@ -7,8 +7,10 @@
  *              Copyright 2012-2013 Kamil Hornicek (kamil.hornicek@reactos.org)
  */
 
-	define("MY_LOGFILE", "/tmp/WineTest_Writer.log");
-
+	if (!defined('MY_LOGFILE')) {
+		define("MY_LOGFILE", "/tmp/WineTest_Writer.log");
+	}
+	
 	class WineTest_Writer
 	{
 		// Member Variables

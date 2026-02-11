@@ -7,6 +7,8 @@
  *              Copyright 2012-2015 Kamil Hornicek (kamil.hornicek@reactos.org)
  */
 
+	define("MY_LOGFILE", "/tmp/WineTest_Writer.log");
+
 	require_once("config.inc.php");
 	require_once(ROOT_PATH . "../www.reactos.org_config/testman-connect.php");
 	require_once("autoload.inc.php");
@@ -154,6 +156,10 @@
 			{
 				if (preg_match("#^Running Wine Test, Module: ([\S]+), Test: ([\S]+)#", $line, $matches))
 				{
+					// for debugging only
+					$pos = ftell($fp);
+					file_put_contents(MY_LOGFILE, date("Y-m-d H:i:s") . ": Testsuite, offset ('$matches[0]', offset: $pos)\n", FILE_APPEND);
+
 					// Get a Suite ID for this combination.
 					$suite_id = $writer->getSuiteId($matches[1], $matches[2]);
 					break;
